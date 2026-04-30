@@ -24,7 +24,7 @@ export interface Choice {
 
 export interface SolutionStep {
   title: string;
-  content: string;
+  content?: string;
   formula?: string;
   result?: string;
 }
