@@ -16,8 +16,8 @@ function polarToSvg(angle: number, r: number): [number, number] {
 
 // ── Function graph constants ─────────────────────────────────────────────────
 const GW      = 440;   // total SVG width
-const GH      = 220;   // total SVG height
-const GP_L    = 36;    // left padding  (y-axis labels)
+const GH      = 260;   // total SVG height (matches UC_H)
+const GP_L    = 52;    // left padding  (y-axis labels — wide enough for "−√3/2")
 const GP_R    = 12;    // right padding
 const GP_T    = 18;    // top padding
 const GP_B    = 32;    // bottom padding (x-axis labels)
@@ -164,9 +164,9 @@ function FunctionGraph({ angle, useDeg }: { angle: number; useDeg: boolean }) {
       className="bg-white rounded-lg border border-slate-200 w-full"
     >
       {/* ── Grid ── */}
-      {[-1, -0.5, 0.5, 1].map(v => (
+      {[1, Math.sqrt(3)/2, Math.sqrt(2)/2, 0.5, -0.5, -Math.sqrt(2)/2, -Math.sqrt(3)/2, -1].map((v, i) => (
         <line
-          key={v}
+          key={i}
           x1={GP_L} y1={yToSvg(v)} x2={GP_L + PLOT_W} y2={yToSvg(v)}
           stroke="#f1f5f9" strokeWidth="1"
         />
@@ -179,9 +179,19 @@ function FunctionGraph({ angle, useDeg }: { angle: number; useDeg: boolean }) {
       <line x1={GP_L} y1={GP_T} x2={GP_L} y2={GP_T + PLOT_H} stroke="#94a3b8" strokeWidth="1" />
 
       {/* ── Y-axis labels ── */}
-      {[1, 0.5, 0, -0.5, -1].map(v => (
-        <text key={v} x={GP_L - 4} y={yToSvg(v) + 4} fontSize="9" fill="#94a3b8" textAnchor="end">
-          {v}
+      {[
+        { val: 1,                   label: '1' },
+        { val: Math.sqrt(3) / 2,    label: '√3/2' },
+        { val: Math.sqrt(2) / 2,    label: '√2/2' },
+        { val: 0.5,                 label: '1/2' },
+        { val: 0,                   label: '0' },
+        { val: -0.5,                label: '−1/2' },
+        { val: -Math.sqrt(2) / 2,   label: '−√2/2' },
+        { val: -Math.sqrt(3) / 2,   label: '−√3/2' },
+        { val: -1,                  label: '−1' },
+      ].map(({ val, label }) => (
+        <text key={label} x={GP_L - 4} y={yToSvg(val) + 4} fontSize="9" fill="#94a3b8" textAnchor="end">
+          {label}
         </text>
       ))}
 
