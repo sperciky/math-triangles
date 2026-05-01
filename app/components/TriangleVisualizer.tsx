@@ -11,6 +11,7 @@ interface Props {
   highlight?: HighlightEl[];
   width?: number;
   height?: number;
+  fullWidth?: boolean;
 }
 
 function layoutTriangle(t: Triangle, w: number, h: number) {
@@ -79,6 +80,7 @@ export default function TriangleVisualizer({
   highlight = [],
   width = 340,
   height = 220,
+  fullWidth = false,
 }: Props) {
   if (!triangle.a || !triangle.b || !triangle.c || triangle.alpha === undefined) {
     return (
@@ -89,7 +91,7 @@ export default function TriangleVisualizer({
   }
 
   const { ax, ay, bx, by, cx, cy } = layoutTriangle(triangle, width, height);
-  const { alpha, beta, gamma } = triangle;
+  const { alpha, beta } = triangle;
 
   const hl = new Set(highlight);
   const AMBER = '#f59e0b';
@@ -106,8 +108,12 @@ export default function TriangleVisualizer({
   const labelOffset = 14;
 
   return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}
-      className="bg-white rounded-lg border border-slate-200">
+    <svg
+      width={fullWidth ? '100%' : width}
+      height={fullWidth ? undefined : height}
+      viewBox={`0 0 ${width} ${height}`}
+      className="bg-white rounded-lg border border-slate-200"
+    >
 
       {/* ── Sides ── */}
       <line x1={bx} y1={by} x2={cx} y2={cy}
@@ -120,37 +126,27 @@ export default function TriangleVisualizer({
         stroke={hl.has('c') ? AMBER : '#475569'}
         strokeWidth={hl.has('c') ? 3 : 2} />
 
-      {/* ── Angle arcs at A (α) ── */}
-      {rightAngleAt !== 'A' && (
-        <path
-          d={angleArcPath(ax, ay, bx, by, cx, cy, arcR)}
-          fill="none"
-          stroke={hl.has('alpha') ? AMBER : '#94a3b8'}
-          strokeWidth={hl.has('alpha') ? 2.5 : 1.5}
-        />
-      )}
+      {/* ── Angle arcs — all three vertices always shown ── */}
+      <path
+        d={angleArcPath(ax, ay, bx, by, cx, cy, arcR)}
+        fill="none"
+        stroke={hl.has('alpha') ? AMBER : '#94a3b8'}
+        strokeWidth={hl.has('alpha') ? 2.5 : 1.5}
+      />
+      <path
+        d={angleArcPath(bx, by, ax, ay, cx, cy, arcR)}
+        fill="none"
+        stroke={hl.has('beta') ? AMBER : '#94a3b8'}
+        strokeWidth={hl.has('beta') ? 2.5 : 1.5}
+      />
+      <path
+        d={angleArcPath(cx, cy, ax, ay, bx, by, arcR)}
+        fill="none"
+        stroke={hl.has('gamma') ? AMBER : '#94a3b8'}
+        strokeWidth={hl.has('gamma') ? 2.5 : 1.5}
+      />
 
-      {/* ── Angle arcs at B (β) ── */}
-      {rightAngleAt !== 'B' && (
-        <path
-          d={angleArcPath(bx, by, ax, ay, cx, cy, arcR)}
-          fill="none"
-          stroke={hl.has('beta') ? AMBER : '#94a3b8'}
-          strokeWidth={hl.has('beta') ? 2.5 : 1.5}
-        />
-      )}
-
-      {/* ── Angle arc / right-angle marker at C (γ) ── */}
-      {rightAngleAt !== 'C' && (
-        <path
-          d={angleArcPath(cx, cy, ax, ay, bx, by, arcR)}
-          fill="none"
-          stroke={hl.has('gamma') ? AMBER : '#94a3b8'}
-          strokeWidth={hl.has('gamma') ? 2.5 : 1.5}
-        />
-      )}
-
-      {/* ── Right-angle square markers ── */}
+      {/* ── Right-angle square markers (drawn on top of arc) ── */}
       {rightAngleAt === 'C' && (
         <RightAngleMarker x={cx} y={cy} angle={-(Math.PI - (alpha ?? 0))}
           color={hl.has('gamma') ? AMBER : '#475569'} />
@@ -195,7 +191,7 @@ export default function TriangleVisualizer({
         textAnchor="middle"
       >c = {fmtSide(triangle.c)}</text>
 
-      {/* ── Angle labels ── */}
+      {/* ── Angle labels (α and β only; γ is indicated by the square marker) ── */}
       <text x={ax + arcR + 6} y={ay - 6} fontSize="11"
         fill={hl.has('alpha') ? AMBER : '#ef4444'}
         fontWeight={hl.has('alpha') ? 'bold' : 'normal'}>
@@ -205,11 +201,6 @@ export default function TriangleVisualizer({
         fill={hl.has('beta') ? AMBER : '#ef4444'}
         fontWeight={hl.has('beta') ? 'bold' : 'normal'}>
         β={fmtAngle(beta)}
-      </text>
-      <text x={cx + 6} y={cy + 16} fontSize="11"
-        fill={hl.has('gamma') ? AMBER : '#ef4444'}
-        fontWeight={hl.has('gamma') ? 'bold' : 'normal'}>
-        γ={fmtAngle(gamma)}
       </text>
     </svg>
   );
