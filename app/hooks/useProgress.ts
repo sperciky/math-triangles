@@ -102,16 +102,11 @@ export function useProgress() {
   }, [save]);
 
   const isLevelUnlocked = useCallback(
-    (level: number): boolean => {
-      if (level === 1) return true;
-      return progress.levels[level - 1]?.completed ?? false;
-    },
-    [progress]
+    (_level: number): boolean => true,
+    []
   );
 
-  const isTestUnlocked = useCallback((): boolean => {
-    return progress.levels[TOTAL_LEVELS]?.completed ?? false;
-  }, [progress]);
+  const isTestUnlocked = useCallback((): boolean => true, []);
 
   const totalScore = Object.values(progress.levels).reduce((s, l) => s + l.score, 0);
   const totalMaxScore = Object.values(progress.levels).reduce((s, l) => s + l.maxScore, 0);
