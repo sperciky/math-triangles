@@ -522,22 +522,16 @@ export default function UnitCircle() {
 
             {/* Mirror-angle box */}
             <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-700 text-center leading-relaxed">
-              {smClose && cmClose ? (
-                <span>Tento úhel je zrcadlovým bodem sám sobě pro obě funkce.</span>
-              ) : (
-                <>
-                  Stejnou hodnotu nabývá funkce&nbsp;
-                  <span style={{ color: SIN_COLOR }} className="font-semibold">sin</span>
-                  {smClose
-                    ? <> i v tomto úhlu</>
-                    : <> i v úhlu&nbsp;<strong>{useDeg ? formatDeg(sm) : formatRad(sm)}</strong></>}
-                  ,&nbsp;
-                  <span style={{ color: COS_COLOR }} className="font-semibold">cos</span>
-                  {cmClose
-                    ? <> i v tomto úhlu.</>
-                    : <> v úhlu&nbsp;<strong>{useDeg ? formatDeg(cm) : formatRad(cm)}</strong>.</>}
-                </>
-              )}
+              Stejnou hodnotu nabývá funkce&nbsp;
+              <span style={{ color: SIN_COLOR }} className="font-semibold">sin</span>
+              {smClose
+                ? <> v rozmezí ⟨0, 2π⟩ pouze v tomto úhlu</>
+                : <> i v úhlu&nbsp;<strong>{useDeg ? formatDeg(sm) : formatRad(sm)}</strong></>}
+              ,&nbsp;
+              <span style={{ color: COS_COLOR }} className="font-semibold">cos</span>
+              {cmClose
+                ? <> v rozmezí ⟨0, 2π⟩ pouze v tomto úhlu.</>
+                : <> v úhlu&nbsp;<strong>{useDeg ? formatDeg(cm) : formatRad(cm)}</strong>.</>}
             </div>
           </div>
         );
