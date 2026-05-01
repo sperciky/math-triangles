@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { TEST_PROBLEMS } from '../data/testProblems';
 import { useProgress } from '../hooks/useProgress';
 import SolutionDisplay from './SolutionDisplay';
+import TestDiagram from './TestDiagram';
 
 type Answers = Record<string, string>;
 type Results = Record<string, { correct: boolean; earned: number; userVal: number | null }>;
@@ -82,6 +83,9 @@ export default function FinalTest() {
                 </span>
                 <div className="flex-1">
                   <p className="text-slate-900 font-medium leading-snug">{p.question}</p>
+                  <div className="mt-3 flex justify-center">
+                    <TestDiagram problemId={p.id} />
+                  </div>
                   {p.hint && submitted && !res?.correct && (
                     <p className="text-amber-700 text-sm mt-1">💡 {p.hint}</p>
                   )}
