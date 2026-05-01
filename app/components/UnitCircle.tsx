@@ -268,7 +268,11 @@ export default function UnitCircle() {
   const [px, py] = polarToSvg(angle, UC_R);
 
   const handleSlider = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setRawAngle(Number(e.target.value));
+    const val = Number(e.target.value);
+    // Visually snap to a special angle when within ~2.5° so the thumb sticks
+    const STICK = 0.044; // ~2.5°
+    const stuck = SPECIAL.find(s => Math.abs(val - s.val) < STICK);
+    setRawAngle(stuck ? stuck.val : val);
   }, []);
 
   const quadrant =
@@ -353,25 +357,38 @@ export default function UnitCircle() {
         </div>
       </div>
 
-      {/* ── Controls ── */}
-      <div className="flex flex-col sm:flex-row items-center gap-3">
-        {/* Slider */}
+      {/* ── Angle display + controls ── */}
+      <div className="flex flex-col sm:flex-row items-center gap-4">
+
+        {/* Large angle badge */}
+        <div className="shrink-0 text-center bg-blue-50 border-2 border-blue-200 rounded-2xl py-3 px-6 min-w-[140px]">
+          <div className="text-xs text-blue-400 font-semibold uppercase tracking-wider mb-1">Úhel α</div>
+          <div className="text-4xl font-extrabold text-blue-700 leading-none tracking-tight">
+            {formatDeg(angle)}
+          </div>
+          <div className="text-lg font-bold text-blue-500 mt-1">
+            {formatRad(angle)}
+          </div>
+        </div>
+
+        {/* Slider + ticks */}
         <div className="flex-1 w-full">
-          <label className="block text-sm text-slate-600 mb-1 text-center">
-            Úhel α =&nbsp;
-            <strong className="text-blue-700">{formatDeg(angle)}</strong>
-            &nbsp;=&nbsp;
-            <strong className="text-blue-700">{formatRad(angle)}</strong>
-          </label>
           <input
             type="range"
+            list="angle-ticks"
             min="0"
             max={2 * Math.PI}
-            step="0.01"
+            step="0.001"
             value={rawAngle}
             onChange={handleSlider}
             className="w-full accent-blue-600"
           />
+          {/* datalist provides browser tick marks at every special angle */}
+          <datalist id="angle-ticks">
+            {SPECIAL.map(s => (
+              <option key={s.val} value={s.val} />
+            ))}
+          </datalist>
           <div className="flex justify-between text-xs text-slate-400 mt-0.5" style={{ paddingLeft: 8, paddingRight: 8 }}>
             <span>{useDeg ? '0°' : '0'}</span>
             <span>{useDeg ? '90°' : 'π/2'}</span>
@@ -386,7 +403,7 @@ export default function UnitCircle() {
           onClick={() => setUseDeg(d => !d)}
           className="shrink-0 px-4 py-2 rounded-lg border border-slate-300 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
         >
-          {useDeg ? 'Přepnout na rad' : 'Přepnout na °'}
+          {useDeg ? '→ rad' : '→ °'}
         </button>
       </div>
 
