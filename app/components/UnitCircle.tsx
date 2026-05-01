@@ -18,7 +18,7 @@ function polarToSvg(angle: number, r: number): [number, number] {
 const GW      = 440;   // total SVG width
 const GH      = 260;   // total SVG height (matches UC_H)
 const GP_L    = 52;    // left padding  (y-axis labels — wide enough for "−√3/2")
-const GP_R    = 12;    // right padding
+const GP_R    = 50;    // right padding (space for end-of-curve labels)
 const GP_T    = 18;    // top padding
 const GP_B    = 32;    // bottom padding (x-axis labels)
 const PLOT_W  = GW - GP_L - GP_R;
@@ -249,16 +249,17 @@ function FunctionGraph({ angle, useDeg }: { angle: number; useDeg: boolean }) {
       {/* cos: current dot (filled) */}
       <circle cx={cx2} cy={cy2} r="4.5" fill={COS_COLOR} stroke="white" strokeWidth="1.5" />
 
-      {/* ── Legend ── */}
-      <g transform={`translate(${GP_L + 8}, ${GP_T + 8})`}>
-        <rect x="0" y="0" width="80" height="34" rx="4" fill="white" opacity="0.85" />
-        <line x1="6" y1="10" x2="18" y2="10" stroke={SIN_COLOR} strokeWidth="2" />
-        <circle cx="12" cy="10" r="3" fill={SIN_COLOR} />
-        <text x="22" y="14" fontSize="10" fill={SIN_COLOR} fontWeight="bold">sin α</text>
-        <line x1="6" y1="24" x2="18" y2="24" stroke={COS_COLOR} strokeWidth="2" />
-        <circle cx="12" cy="24" r="3" fill={COS_COLOR} />
-        <text x="22" y="28" fontSize="10" fill={COS_COLOR} fontWeight="bold">cos α</text>
-      </g>
+      {/* ── Curve-end labels (right margin, at sin(2π)=0 and cos(2π)=1) ── */}
+      <text
+        x={GP_L + PLOT_W + 6}
+        y={yToSvg(0) + 4}
+        fontSize="10" fill={SIN_COLOR} fontWeight="bold" dominantBaseline="middle"
+      >sin α</text>
+      <text
+        x={GP_L + PLOT_W + 6}
+        y={yToSvg(1) + 4}
+        fontSize="10" fill={COS_COLOR} fontWeight="bold" dominantBaseline="middle"
+      >cos α</text>
     </svg>
   );
 }
