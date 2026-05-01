@@ -443,29 +443,41 @@ export default function UnitCircle() {
         );
       })()}
 
-      {/* ── Info line ── */}
-      {/* ── Info line ── */}
+      {/* ── Info boxes ── */}
       {(() => {
         const sm = snapAngle(sinMirror(angle));
         const cm = snapAngle(cosMirror(angle));
         const smClose = Math.abs(sm - angle) < EPS;
         const cmClose = Math.abs(cm - angle) < EPS;
         return (
-          <p className="text-xs text-slate-500 text-center leading-relaxed">
-            Kvadrant:&nbsp;<strong>{quadrant}</strong>
-            &nbsp;·&nbsp;P = ({cosVal},&nbsp;{sinVal})
-            &nbsp;·&nbsp;sin²α + cos²α = {round(sinVal ** 2 + cosVal ** 2, 4)}
-            <br />
-            <span style={{ color: SIN_COLOR }} className="font-semibold">sin</span>
-            {smClose
-              ? <> — úhel je svým vlastním zrcadlem</>
-              : <> zrcadlí u&nbsp;<strong>{useDeg ? formatDeg(sm) : formatRad(sm)}</strong></>}
-            &nbsp;·&nbsp;
-            <span style={{ color: COS_COLOR }} className="font-semibold">cos</span>
-            {cmClose
-              ? <> — úhel je svým vlastním zrcadlem</>
-              : <> zrcadlí u&nbsp;<strong>{useDeg ? formatDeg(cm) : formatRad(cm)}</strong></>}
-          </p>
+          <div className="flex flex-col gap-2">
+            {/* Quadrant / identity row */}
+            <p className="text-xs text-slate-500 text-center">
+              Kvadrant:&nbsp;<strong>{quadrant}</strong>
+              &nbsp;·&nbsp;P = ({cosVal},&nbsp;{sinVal})
+              &nbsp;·&nbsp;sin²α + cos²α = {round(sinVal ** 2 + cosVal ** 2, 4)}
+            </p>
+
+            {/* Mirror-angle box */}
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-700 text-center leading-relaxed">
+              {smClose && cmClose ? (
+                <span>Tento úhel je zrcadlovým bodem sám sobě pro obě funkce.</span>
+              ) : (
+                <>
+                  Stejnou hodnotu nabývá funkce&nbsp;
+                  <span style={{ color: SIN_COLOR }} className="font-semibold">sin</span>
+                  {smClose
+                    ? <> i v tomto úhlu</>
+                    : <> i v úhlu&nbsp;<strong>{useDeg ? formatDeg(sm) : formatRad(sm)}</strong></>}
+                  ,&nbsp;
+                  <span style={{ color: COS_COLOR }} className="font-semibold">cos</span>
+                  {cmClose
+                    ? <> i v tomto úhlu.</>
+                    : <> v úhlu&nbsp;<strong>{useDeg ? formatDeg(cm) : formatRad(cm)}</strong>.</>}
+                </>
+              )}
+            </div>
+          </div>
         );
       })()}
     </div>
