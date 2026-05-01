@@ -1,110 +1,332 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { radToDeg, round } from '../math/goniometry';
 
-const R = 110; // circle radius in SVG units
-const CX = 150;
-const CY = 150;
-const SIZE = 300;
+// ── Unit circle constants ────────────────────────────────────────────────────
+const UC_R  = 100;
+const UC_CX = 130;
+const UC_CY = 130;
+const UC_W  = 260;
+const UC_H  = 260;
 
 function polarToSvg(angle: number, r: number): [number, number] {
-  // SVG y-axis is flipped
-  return [CX + r * Math.cos(angle), CY - r * Math.sin(angle)];
+  return [UC_CX + r * Math.cos(angle), UC_CY - r * Math.sin(angle)];
 }
 
-export default function UnitCircle() {
-  const [angle, setAngle] = useState(Math.PI / 4); // radians
+// ── Function graph constants ─────────────────────────────────────────────────
+const GW      = 440;   // total SVG width
+const GH      = 220;   // total SVG height
+const GP_L    = 36;    // left padding  (y-axis labels)
+const GP_R    = 12;    // right padding
+const GP_T    = 18;    // top padding
+const GP_B    = 32;    // bottom padding (x-axis labels)
+const PLOT_W  = GW - GP_L - GP_R;
+const PLOT_H  = GH - GP_T - GP_B;
+const MID_Y   = GP_T + PLOT_H / 2;  // y = 0 line in SVG coords
 
-  const deg = round(radToDeg(angle), 1);
+// Map angle [0, 2π] → SVG x
+function xToSvg(a: number): number {
+  return GP_L + (a / (2 * Math.PI)) * PLOT_W;
+}
+// Map value [-1, 1] → SVG y
+function yToSvg(v: number): number {
+  return MID_Y - v * (PLOT_H / 2);
+}
+
+// Generate polyline points string for a trig function
+function makeCurve(fn: (x: number) => number, steps = 360): string {
+  return Array.from({ length: steps + 1 }, (_, i) => {
+    const a = (i / steps) * 2 * Math.PI;
+    return `${xToSvg(a).toFixed(2)},${yToSvg(fn(a)).toFixed(2)}`;
+  }).join(' ');
+}
+
+// ── Colour tokens ────────────────────────────────────────────────────────────
+const SIN_COLOR = '#ef4444';   // red-500
+const COS_COLOR = '#10b981';   // emerald-500
+
+// ── Mirror angles ────────────────────────────────────────────────────────────
+// sin(π − α) = sin α  →  mirror_sin = π − α  (mod 2π, clamped to [0, 2π])
+function sinMirror(a: number): number {
+  const m = Math.PI - a;
+  return ((m % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+}
+// cos(2π − α) = cos α  →  mirror_cos = 2π − α
+function cosMirror(a: number): number {
+  const m = 2 * Math.PI - a;
+  return ((m % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+}
+
+const EPS = 0.04; // angle distance below which mirror ≈ current (no line drawn)
+
+// ── X-axis tick config ───────────────────────────────────────────────────────
+const TICKS_DEG = [
+  { a: 0,              label_deg: '0°',    label_rad: '0' },
+  { a: Math.PI / 2,    label_deg: '90°',   label_rad: 'π/2' },
+  { a: Math.PI,        label_deg: '180°',  label_rad: 'π' },
+  { a: 3 * Math.PI / 2,label_deg: '270°',  label_rad: '3π/2' },
+  { a: 2 * Math.PI,    label_deg: '360°',  label_rad: '2π' },
+];
+
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+function FunctionGraph({ angle, useDeg }: { angle: number; useDeg: boolean }) {
+  const sinCurve = useMemo(() => makeCurve(Math.sin), []);
+  const cosCurve = useMemo(() => makeCurve(Math.cos), []);
+
+  const sv  = Math.sin(angle);
+  const cv  = Math.cos(angle);
+  const sm  = sinMirror(angle);
+  const cm  = cosMirror(angle);
+  const smClose = Math.abs(sm - angle) < EPS;
+  const cmClose = Math.abs(cm - angle) < EPS || Math.abs(cm - (angle + 2 * Math.PI)) < EPS;
+
+  // SVG coords for current + mirror dots
+  const sx  = xToSvg(angle);
+  const sy  = yToSvg(sv);
+  const smx = xToSvg(sm);
+
+  const cx2  = xToSvg(angle);
+  const cy2  = yToSvg(cv);
+  const cmx  = xToSvg(cm);
+  const cmy  = yToSvg(cv);
+
+  return (
+    <svg
+      width={GW}
+      height={GH}
+      viewBox={`0 0 ${GW} ${GH}`}
+      className="bg-white rounded-lg border border-slate-200 w-full"
+    >
+      {/* ── Grid ── */}
+      {[-1, -0.5, 0.5, 1].map(v => (
+        <line
+          key={v}
+          x1={GP_L} y1={yToSvg(v)} x2={GP_L + PLOT_W} y2={yToSvg(v)}
+          stroke="#f1f5f9" strokeWidth="1"
+        />
+      ))}
+
+      {/* ── Axes ── */}
+      {/* x-axis (y = 0) */}
+      <line x1={GP_L} y1={MID_Y} x2={GP_L + PLOT_W} y2={MID_Y} stroke="#94a3b8" strokeWidth="1" />
+      {/* y-axis */}
+      <line x1={GP_L} y1={GP_T} x2={GP_L} y2={GP_T + PLOT_H} stroke="#94a3b8" strokeWidth="1" />
+
+      {/* ── Y-axis labels ── */}
+      {[1, 0.5, 0, -0.5, -1].map(v => (
+        <text key={v} x={GP_L - 4} y={yToSvg(v) + 4} fontSize="9" fill="#94a3b8" textAnchor="end">
+          {v}
+        </text>
+      ))}
+
+      {/* ── X-axis ticks & labels ── */}
+      {TICKS_DEG.map(t => (
+        <g key={t.label_deg}>
+          <line x1={xToSvg(t.a)} y1={MID_Y - 3} x2={xToSvg(t.a)} y2={MID_Y + 3} stroke="#94a3b8" strokeWidth="1" />
+          <text
+            x={xToSvg(t.a)}
+            y={GP_T + PLOT_H + 18}
+            fontSize="9"
+            fill="#64748b"
+            textAnchor="middle"
+          >
+            {useDeg ? t.label_deg : t.label_rad}
+          </text>
+        </g>
+      ))}
+
+      {/* ── Curves ── */}
+      <polyline points={cosCurve} fill="none" stroke={COS_COLOR} strokeWidth="2" opacity="0.85" />
+      <polyline points={sinCurve} fill="none" stroke={SIN_COLOR} strokeWidth="2" opacity="0.85" />
+
+      {/* ── Current angle vertical marker ── */}
+      <line
+        x1={sx} y1={GP_T} x2={sx} y2={GP_T + PLOT_H}
+        stroke="#3b82f6" strokeWidth="1" strokeDasharray="3,3" opacity="0.6"
+      />
+
+      {/* ── Sin horizontal connector ── */}
+      {!smClose && (
+        <line
+          x1={sx} y1={sy} x2={smx} y2={sy}
+          stroke={SIN_COLOR} strokeWidth="1.5" strokeDasharray="4,3" opacity="0.8"
+        />
+      )}
+      {/* sin: mirror dot (open) */}
+      {!smClose && (
+        <circle cx={smx} cy={sy} r="4" fill="white" stroke={SIN_COLOR} strokeWidth="2" />
+      )}
+      {/* sin: current dot (filled) */}
+      <circle cx={sx} cy={sy} r="4.5" fill={SIN_COLOR} stroke="white" strokeWidth="1.5" />
+
+      {/* ── Cos horizontal connector ── */}
+      {!cmClose && (
+        <line
+          x1={cx2} y1={cy2} x2={cmx} y2={cmy}
+          stroke={COS_COLOR} strokeWidth="1.5" strokeDasharray="4,3" opacity="0.8"
+        />
+      )}
+      {/* cos: mirror dot (open) */}
+      {!cmClose && (
+        <circle cx={cmx} cy={cmy} r="4" fill="white" stroke={COS_COLOR} strokeWidth="2" />
+      )}
+      {/* cos: current dot (filled) */}
+      <circle cx={cx2} cy={cy2} r="4.5" fill={COS_COLOR} stroke="white" strokeWidth="1.5" />
+
+      {/* ── Legend ── */}
+      <g transform={`translate(${GP_L + 8}, ${GP_T + 8})`}>
+        <rect x="0" y="0" width="80" height="34" rx="4" fill="white" opacity="0.85" />
+        <line x1="6" y1="10" x2="18" y2="10" stroke={SIN_COLOR} strokeWidth="2" />
+        <circle cx="12" cy="10" r="3" fill={SIN_COLOR} />
+        <text x="22" y="14" fontSize="10" fill={SIN_COLOR} fontWeight="bold">sin α</text>
+        <line x1="6" y1="24" x2="18" y2="24" stroke={COS_COLOR} strokeWidth="2" />
+        <circle cx="12" cy="24" r="3" fill={COS_COLOR} />
+        <text x="22" y="28" fontSize="10" fill={COS_COLOR} fontWeight="bold">cos α</text>
+      </g>
+    </svg>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
+export default function UnitCircle() {
+  const [angle, setAngle]   = useState(Math.PI / 4);
+  const [useDeg, setUseDeg] = useState(true);
+
+  const deg    = round(radToDeg(angle), 1);
   const sinVal = round(Math.sin(angle), 4);
   const cosVal = round(Math.cos(angle), 4);
   const tanVal = Math.abs(Math.cos(angle)) < 0.01 ? '±∞' : String(round(Math.tan(angle), 4));
 
-  const [px, py] = polarToSvg(angle, R);
+  const [px, py] = polarToSvg(angle, UC_R);
 
   const handleSlider = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setAngle(Number(e.target.value));
   }, []);
 
-  // Quadrant label
-  const quadrant = angle >= 0 && angle < Math.PI / 2 ? 'I'
-    : angle < Math.PI ? 'II'
-    : angle < 1.5 * Math.PI ? 'III'
-    : 'IV';
+  const quadrant =
+    angle < Math.PI / 2       ? 'I'   :
+    angle < Math.PI            ? 'II'  :
+    angle < 1.5 * Math.PI     ? 'III' : 'IV';
 
   return (
-    <div className="flex flex-col items-center gap-4">
-      <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} className="border border-slate-200 rounded-lg bg-white">
-        {/* Axes */}
-        <line x1="20" y1={CY} x2={SIZE - 20} y2={CY} stroke="#94a3b8" strokeWidth="1" />
-        <line x1={CX} y1="20" x2={CX} y2={SIZE - 20} stroke="#94a3b8" strokeWidth="1" />
+    <div className="flex flex-col gap-4">
 
-        {/* Axis labels */}
-        <text x={SIZE - 18} y={CY + 4} fontSize="12" fill="#64748b">x</text>
-        <text x={CX + 4} y="18" fontSize="12" fill="#64748b">y</text>
+      {/* ── Top row: unit circle + graph ── */}
+      <div className="flex flex-col lg:flex-row gap-4 items-start">
 
         {/* Unit circle */}
-        <circle cx={CX} cy={CY} r={R} fill="none" stroke="#334155" strokeWidth="1.5" />
+        <div className="shrink-0">
+          <svg
+            width={UC_W}
+            height={UC_H}
+            viewBox={`0 0 ${UC_W} ${UC_H}`}
+            className="border border-slate-200 rounded-lg bg-white"
+          >
+            {/* Axes */}
+            <line x1="16" y1={UC_CY} x2={UC_W - 10} y2={UC_CY} stroke="#94a3b8" strokeWidth="1" />
+            <line x1={UC_CX} y1="10"  x2={UC_CX} y2={UC_H - 10} stroke="#94a3b8" strokeWidth="1" />
+            <text x={UC_W - 12} y={UC_CY + 4} fontSize="11" fill="#64748b">x</text>
+            <text x={UC_CX + 4} y="16"         fontSize="11" fill="#64748b">y</text>
 
-        {/* Angle arc */}
-        {(() => {
-          const sweep = angle < 0 ? 0 : 1;
-          const [ax, ay] = polarToSvg(angle, 30);
-          const largeArc = Math.abs(angle) > Math.PI ? 1 : 0;
-          return (
-            <path
-              d={`M ${CX + 30} ${CY} A 30 30 0 ${largeArc} ${sweep} ${ax} ${ay}`}
-              fill="rgba(59,130,246,0.15)"
-              stroke="#3b82f6"
-              strokeWidth="1.5"
-            />
-          );
-        })()}
+            {/* Unit circle */}
+            <circle cx={UC_CX} cy={UC_CY} r={UC_R} fill="none" stroke="#334155" strokeWidth="1.5" />
 
-        {/* Radius line */}
-        <line x1={CX} y1={CY} x2={px} y2={py} stroke="#3b82f6" strokeWidth="2" />
+            {/* Angle arc */}
+            {(() => {
+              const [ax, ay] = polarToSvg(angle, 28);
+              const large = angle > Math.PI ? 1 : 0;
+              return (
+                <path
+                  d={`M ${UC_CX + 28} ${UC_CY} A 28 28 0 ${large} 1 ${ax} ${ay}`}
+                  fill="rgba(59,130,246,0.12)"
+                  stroke="#3b82f6"
+                  strokeWidth="1.5"
+                />
+              );
+            })()}
 
-        {/* sin projection (vertical) */}
-        <line x1={px} y1={py} x2={px} y2={CY} stroke="#ef4444" strokeWidth="1.5" strokeDasharray="4,3" />
-        <text x={px + 4} y={(py + CY) / 2} fontSize="11" fill="#ef4444" fontWeight="bold">sin</text>
+            {/* Radius */}
+            <line x1={UC_CX} y1={UC_CY} x2={px} y2={py} stroke="#3b82f6" strokeWidth="2" />
 
-        {/* cos projection (horizontal) */}
-        <line x1={CX} y1={CY} x2={px} y2={CY} stroke="#10b981" strokeWidth="1.5" strokeDasharray="4,3" />
-        <text x={(CX + px) / 2} y={CY + 14} fontSize="11" fill="#10b981" fontWeight="bold">cos</text>
+            {/* sin projection */}
+            <line x1={px} y1={py} x2={px} y2={UC_CY} stroke={SIN_COLOR} strokeWidth="1.5" strokeDasharray="4,3" />
+            <text
+              x={px + (px > UC_CX ? 4 : -26)}
+              y={(py + UC_CY) / 2 + 4}
+              fontSize="10" fill={SIN_COLOR} fontWeight="bold"
+            >sin</text>
 
-        {/* Point on circle */}
-        <circle cx={px} cy={py} r="5" fill="#3b82f6" stroke="white" strokeWidth="1.5" />
-        <text x={px + 7} y={py - 6} fontSize="11" fill="#1e40af">P</text>
+            {/* cos projection */}
+            <line x1={UC_CX} y1={UC_CY} x2={px} y2={UC_CY} stroke={COS_COLOR} strokeWidth="1.5" strokeDasharray="4,3" />
+            <text
+              x={(UC_CX + px) / 2}
+              y={UC_CY + (py > UC_CY ? -6 : 14)}
+              fontSize="10" fill={COS_COLOR} fontWeight="bold" textAnchor="middle"
+            >cos</text>
 
-        {/* Angle label */}
-        <text x={CX + 35} y={CY - 8} fontSize="11" fill="#3b82f6">α</text>
+            {/* Point */}
+            <circle cx={px} cy={py} r="5" fill="#3b82f6" stroke="white" strokeWidth="1.5" />
+            <text x={px + 7} y={py - 6} fontSize="10" fill="#1e40af">P</text>
 
-        {/* Quadrant labels */}
-        <text x={CX + 60} y={CY - 60} fontSize="10" fill="#cbd5e1">I</text>
-        <text x={CX - 75} y={CY - 60} fontSize="10" fill="#cbd5e1">II</text>
-        <text x={CX - 75} y={CY + 70} fontSize="10" fill="#cbd5e1">III</text>
-        <text x={CX + 60} y={CY + 70} fontSize="10" fill="#cbd5e1">IV</text>
-      </svg>
+            {/* α label */}
+            <text x={UC_CX + 32} y={UC_CY - 7} fontSize="10" fill="#3b82f6">α</text>
 
-      {/* Slider */}
-      <div className="w-full max-w-xs">
-        <label className="block text-sm text-slate-600 mb-1 text-center">
-          Úhel α = <strong className="text-blue-700">{deg}°</strong> = <strong className="text-blue-700">{round(angle, 3)} rad</strong>
-        </label>
-        <input
-          type="range"
-          min="0"
-          max={2 * Math.PI}
-          step="0.01"
-          value={angle}
-          onChange={handleSlider}
-          className="w-full accent-blue-600"
-        />
+            {/* Quadrant labels */}
+            <text x={UC_CX + 52} y={UC_CY - 52} fontSize="9" fill="#cbd5e1">I</text>
+            <text x={UC_CX - 64} y={UC_CY - 52} fontSize="9" fill="#cbd5e1">II</text>
+            <text x={UC_CX - 64} y={UC_CY + 62} fontSize="9" fill="#cbd5e1">III</text>
+            <text x={UC_CX + 52} y={UC_CY + 62} fontSize="9" fill="#cbd5e1">IV</text>
+          </svg>
+        </div>
+
+        {/* Function graph */}
+        <div className="flex-1 min-w-0">
+          <FunctionGraph angle={angle} useDeg={useDeg} />
+        </div>
       </div>
 
-      {/* Live values */}
-      <div className="grid grid-cols-3 gap-3 w-full max-w-sm text-center">
+      {/* ── Controls ── */}
+      <div className="flex flex-col sm:flex-row items-center gap-3">
+        {/* Slider */}
+        <div className="flex-1 w-full">
+          <label className="block text-sm text-slate-600 mb-1 text-center">
+            Úhel α =&nbsp;
+            <strong className="text-blue-700">{deg}°</strong>
+            &nbsp;=&nbsp;
+            <strong className="text-blue-700">{round(angle, 3)} rad</strong>
+          </label>
+          <input
+            type="range"
+            min="0"
+            max={2 * Math.PI}
+            step="0.01"
+            value={angle}
+            onChange={handleSlider}
+            className="w-full accent-blue-600"
+          />
+          <div className="flex justify-between text-xs text-slate-400 mt-0.5 px-0.5">
+            <span>{useDeg ? '0°' : '0'}</span>
+            <span>{useDeg ? '90°' : 'π/2'}</span>
+            <span>{useDeg ? '180°' : 'π'}</span>
+            <span>{useDeg ? '270°' : '3π/2'}</span>
+            <span>{useDeg ? '360°' : '2π'}</span>
+          </div>
+        </div>
+
+        {/* Degree / Radian toggle */}
+        <button
+          onClick={() => setUseDeg(d => !d)}
+          className="shrink-0 px-4 py-2 rounded-lg border border-slate-300 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
+        >
+          {useDeg ? 'Přepnout na rad' : 'Přepnout na °'}
+        </button>
+      </div>
+
+      {/* ── Value badges ── */}
+      <div className="grid grid-cols-3 gap-3 text-center">
         <div className="bg-red-50 border border-red-200 rounded-lg p-2">
           <div className="text-xs text-red-500 font-semibold mb-0.5">sin α</div>
           <div className="font-mono font-bold text-red-700">{sinVal}</div>
@@ -119,8 +341,17 @@ export default function UnitCircle() {
         </div>
       </div>
 
-      <p className="text-xs text-slate-500">
-        Kvadrant: <strong>{quadrant}</strong> · P = ({cosVal}, {sinVal}) · sin²α + cos²α = {round(sinVal ** 2 + cosVal ** 2, 4)}
+      {/* ── Info line ── */}
+      <p className="text-xs text-slate-500 text-center">
+        Kvadrant:&nbsp;<strong>{quadrant}</strong>
+        &nbsp;·&nbsp;P = ({cosVal}, {sinVal})
+        &nbsp;·&nbsp;sin²α + cos²α = {round(sinVal ** 2 + cosVal ** 2, 4)}
+        &nbsp;·&nbsp;
+        <span style={{ color: SIN_COLOR }}>sin</span> zrcadlí u&nbsp;
+        <strong>{useDeg ? `${round(180 - deg, 1)}°` : `π−α`}</strong>
+        &nbsp;·&nbsp;
+        <span style={{ color: COS_COLOR }}>cos</span> zrcadlí u&nbsp;
+        <strong>{useDeg ? `${round(360 - deg, 1)}°` : `2π−α`}</strong>
       </p>
     </div>
   );
