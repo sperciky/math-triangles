@@ -2,9 +2,9 @@
 
 import TheoryBlock from '../../components/TheoryBlock';
 import Formula from '../../components/Formula';
-import TriangleVisualizer from '../../components/TriangleVisualizer';
+import RightTriangleInteractive from '../../components/RightTriangleInteractive';
 import LevelPractice from '../../components/LevelPractice';
-import { degToRad } from '../../math/goniometry';
+import { degToRad } from '../../math/goniometry'; // used in DEMO_TRIANGLE
 
 const DEMO_TRIANGLE = {
   a: 3, b: 4, c: 5,
@@ -17,16 +17,11 @@ export default function Level2() {
   return (
     <div className="space-y-2">
       <TheoryBlock title="Pravoúhlý trojúhelník — přehled" defaultOpen>
-        <p className="mb-3">
+        <p className="mb-4">
           Pravoúhlý trojúhelník má jeden vnitřní úhel rovný 90°. Označení: pravý úhel u vrcholu <em>C</em>,
           přepona <em>c</em> (naproti pravému úhlu), odvěsny <em>a</em>, <em>b</em>.
         </p>
-        <div className="flex justify-center mb-4">
-          <TriangleVisualizer triangle={DEMO_TRIANGLE} rightAngleAt="C" width={320} height={200} />
-        </div>
-        <Formula>{`sin α = a/c     cos α = b/c     tg α = a/b
-sin β = b/c     cos β = a/c     tg β = b/a
-α + β = 90°    (komplementární úhly)`}</Formula>
+        <RightTriangleInteractive triangle={DEMO_TRIANGLE} rightAngleAt="C" />
       </TheoryBlock>
 
       <TheoryBlock title="Pythagorova věta" variant="derivation">

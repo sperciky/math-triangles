@@ -3,10 +3,12 @@
 import { Triangle } from '../math/types';
 import { radToDeg, round } from '../math/goniometry';
 
+export type HighlightEl = 'a' | 'b' | 'c' | 'alpha' | 'beta' | 'gamma';
+
 interface Props {
   triangle: Triangle;
   rightAngleAt?: 'C' | 'A' | 'B';
-  highlight?: 'a' | 'b' | 'c' | 'alpha' | 'beta' | 'gamma';
+  highlight?: HighlightEl[];
   width?: number;
   height?: number;
 }
@@ -17,13 +19,11 @@ function layoutTriangle(t: Triangle, w: number, h: number) {
   const scaleW = (w - 2 * pad) / c;
   const scale = Math.min(scaleW, (h - 2 * pad) / (b * 0.9));
 
-  // Place A at bottom-left, B at bottom-right
   const ax = pad;
   const ay = h - pad;
   const bx = pad + c * scale;
   const by = h - pad;
 
-  // C from law of cosines
   const alpha = t.alpha ?? 0;
   const cx = ax + b * scale * Math.cos(alpha);
   const cy = ay - b * scale * Math.sin(alpha);
@@ -31,7 +31,30 @@ function layoutTriangle(t: Triangle, w: number, h: number) {
   return { ax, ay, bx, by, cx, cy, scale };
 }
 
-function RightAngleMarker({ x, y, angle, size = 10 }: { x: number; y: number; angle: number; size?: number }) {
+// SVG arc path for the interior angle at vertex V between rays VP1 and VP2
+function angleArcPath(
+  vx: number, vy: number,
+  p1x: number, p1y: number,
+  p2x: number, p2y: number,
+  r: number,
+): string {
+  const d1x = p1x - vx, d1y = p1y - vy;
+  const d2x = p2x - vx, d2y = p2y - vy;
+  const len1 = Math.hypot(d1x, d1y);
+  const len2 = Math.hypot(d2x, d2y);
+  const sx = vx + r * d1x / len1;
+  const sy = vy + r * d1y / len1;
+  const ex = vx + r * d2x / len2;
+  const ey = vy + r * d2y / len2;
+  // In SVG (y-down): cross > 0 → d1→d2 is clockwise → sweep=1 gives the short arc
+  const cross = d1x * d2y - d1y * d2x;
+  const sweep = cross > 0 ? 1 : 0;
+  return `M ${sx.toFixed(2)},${sy.toFixed(2)} A ${r},${r} 0 0 ${sweep} ${ex.toFixed(2)},${ey.toFixed(2)}`;
+}
+
+function RightAngleMarker({
+  x, y, angle, size = 10, color = '#475569',
+}: { x: number; y: number; angle: number; size?: number; color?: string }) {
   const cos = Math.cos(angle);
   const sin = Math.sin(angle);
   const p1x = x + size * cos;
@@ -44,8 +67,8 @@ function RightAngleMarker({ x, y, angle, size = 10 }: { x: number; y: number; an
     <polyline
       points={`${p1x},${p1y} ${p2x},${p2y} ${p3x},${p3y}`}
       fill="none"
-      stroke="#475569"
-      strokeWidth="1.2"
+      stroke={color}
+      strokeWidth="1.5"
     />
   );
 }
@@ -53,7 +76,7 @@ function RightAngleMarker({ x, y, angle, size = 10 }: { x: number; y: number; an
 export default function TriangleVisualizer({
   triangle,
   rightAngleAt,
-  highlight,
+  highlight = [],
   width = 340,
   height = 220,
 }: Props) {
@@ -68,80 +91,126 @@ export default function TriangleVisualizer({
   const { ax, ay, bx, by, cx, cy } = layoutTriangle(triangle, width, height);
   const { alpha, beta, gamma } = triangle;
 
-  const HL = 'stroke-amber-500';
-  const NORM = 'stroke-slate-700';
-
-  const sideA = highlight === 'a' ? HL : NORM;
-  const sideB = highlight === 'b' ? HL : NORM;
-  const sideC = highlight === 'c' ? HL : NORM;
+  const hl = new Set(highlight);
+  const AMBER = '#f59e0b';
+  const arcR = Math.max(16, Math.min(24, Math.hypot(bx - ax, by - ay) * 0.13));
 
   const fmtAngle = (r: number | undefined) =>
     r !== undefined ? `${round(radToDeg(r), 1)}°` : '';
-
   const fmtSide = (v: number | undefined) =>
     v !== undefined ? `${round(v, 2)}` : '';
 
-  // Midpoints for labels
   const midA = { x: (bx + cx) / 2, y: (by + cy) / 2 };
   const midB = { x: (ax + cx) / 2, y: (ay + cy) / 2 };
   const midC = { x: (ax + bx) / 2, y: (ay + by) / 2 };
-
-  // Offset labels away from interior
   const labelOffset = 14;
 
   return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="bg-white rounded-lg border border-slate-200">
-      {/* Triangle sides */}
-      <line x1={bx} y1={by} x2={cx} y2={cy} strokeWidth={highlight === 'a' ? 2.5 : 2} className={sideA} />
-      <line x1={ax} y1={ay} x2={cx} y2={cy} strokeWidth={highlight === 'b' ? 2.5 : 2} className={sideB} />
-      <line x1={ax} y1={ay} x2={bx} y2={by} strokeWidth={highlight === 'c' ? 2.5 : 2} className={sideC} />
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}
+      className="bg-white rounded-lg border border-slate-200">
 
-      {/* Right angle marker */}
-      {rightAngleAt === 'C' && <RightAngleMarker x={cx} y={cy} angle={-(Math.PI - (alpha ?? 0))} />}
-      {rightAngleAt === 'A' && <RightAngleMarker x={ax} y={ay} angle={0} />}
-      {rightAngleAt === 'B' && <RightAngleMarker x={bx} y={by} angle={Math.PI} />}
+      {/* ── Sides ── */}
+      <line x1={bx} y1={by} x2={cx} y2={cy}
+        stroke={hl.has('a') ? AMBER : '#475569'}
+        strokeWidth={hl.has('a') ? 3 : 2} />
+      <line x1={ax} y1={ay} x2={cx} y2={cy}
+        stroke={hl.has('b') ? AMBER : '#475569'}
+        strokeWidth={hl.has('b') ? 3 : 2} />
+      <line x1={ax} y1={ay} x2={bx} y2={by}
+        stroke={hl.has('c') ? AMBER : '#475569'}
+        strokeWidth={hl.has('c') ? 3 : 2} />
 
-      {/* Vertex labels */}
+      {/* ── Angle arcs at A (α) ── */}
+      {rightAngleAt !== 'A' && (
+        <path
+          d={angleArcPath(ax, ay, bx, by, cx, cy, arcR)}
+          fill="none"
+          stroke={hl.has('alpha') ? AMBER : '#94a3b8'}
+          strokeWidth={hl.has('alpha') ? 2.5 : 1.5}
+        />
+      )}
+
+      {/* ── Angle arcs at B (β) ── */}
+      {rightAngleAt !== 'B' && (
+        <path
+          d={angleArcPath(bx, by, ax, ay, cx, cy, arcR)}
+          fill="none"
+          stroke={hl.has('beta') ? AMBER : '#94a3b8'}
+          strokeWidth={hl.has('beta') ? 2.5 : 1.5}
+        />
+      )}
+
+      {/* ── Angle arc / right-angle marker at C (γ) ── */}
+      {rightAngleAt !== 'C' && (
+        <path
+          d={angleArcPath(cx, cy, ax, ay, bx, by, arcR)}
+          fill="none"
+          stroke={hl.has('gamma') ? AMBER : '#94a3b8'}
+          strokeWidth={hl.has('gamma') ? 2.5 : 1.5}
+        />
+      )}
+
+      {/* ── Right-angle square markers ── */}
+      {rightAngleAt === 'C' && (
+        <RightAngleMarker x={cx} y={cy} angle={-(Math.PI - (alpha ?? 0))}
+          color={hl.has('gamma') ? AMBER : '#475569'} />
+      )}
+      {rightAngleAt === 'A' && (
+        <RightAngleMarker x={ax} y={ay} angle={0}
+          color={hl.has('alpha') ? AMBER : '#475569'} />
+      )}
+      {rightAngleAt === 'B' && (
+        <RightAngleMarker x={bx} y={by} angle={Math.PI}
+          color={hl.has('beta') ? AMBER : '#475569'} />
+      )}
+
+      {/* ── Vertex labels ── */}
       <text x={ax - 14} y={ay + 4} fontSize="13" fontWeight="bold" fill="#1e293b">A</text>
-      <text x={bx + 4} y={by + 4} fontSize="13" fontWeight="bold" fill="#1e293b">B</text>
-      <text x={cx - 4} y={cy - 8} fontSize="13" fontWeight="bold" fill="#1e293b">C</text>
+      <text x={bx + 4}  y={by + 4} fontSize="13" fontWeight="bold" fill="#1e293b">B</text>
+      <text x={cx - 4}  y={cy - 8} fontSize="13" fontWeight="bold" fill="#1e293b">C</text>
 
-      {/* Side labels */}
+      {/* ── Side labels ── */}
       <text
         x={midA.x + labelOffset * Math.sign(midA.x - (ax + bx) / 2 || 1)}
         y={midA.y}
         fontSize="12"
-        fill={highlight === 'a' ? '#d97706' : '#3b82f6'}
-        fontWeight={highlight === 'a' ? 'bold' : 'normal'}
+        fill={hl.has('a') ? AMBER : '#3b82f6'}
+        fontWeight={hl.has('a') ? 'bold' : 'normal'}
         textAnchor="middle"
-      >
-        a = {fmtSide(triangle.a)}
-      </text>
+      >a = {fmtSide(triangle.a)}</text>
       <text
         x={midB.x - labelOffset}
         y={midB.y}
         fontSize="12"
-        fill={highlight === 'b' ? '#d97706' : '#3b82f6'}
-        fontWeight={highlight === 'b' ? 'bold' : 'normal'}
+        fill={hl.has('b') ? AMBER : '#3b82f6'}
+        fontWeight={hl.has('b') ? 'bold' : 'normal'}
         textAnchor="middle"
-      >
-        b = {fmtSide(triangle.b)}
-      </text>
+      >b = {fmtSide(triangle.b)}</text>
       <text
         x={midC.x}
         y={midC.y + labelOffset}
         fontSize="12"
-        fill={highlight === 'c' ? '#d97706' : '#3b82f6'}
-        fontWeight={highlight === 'c' ? 'bold' : 'normal'}
+        fill={hl.has('c') ? AMBER : '#3b82f6'}
+        fontWeight={hl.has('c') ? 'bold' : 'normal'}
         textAnchor="middle"
-      >
-        c = {fmtSide(triangle.c)}
-      </text>
+      >c = {fmtSide(triangle.c)}</text>
 
-      {/* Angle labels */}
-      <text x={ax + 14} y={ay - 6} fontSize="11" fill="#ef4444">α={fmtAngle(alpha)}</text>
-      <text x={bx - 44} y={by - 6} fontSize="11" fill="#ef4444">β={fmtAngle(beta)}</text>
-      <text x={cx + 4} y={cy + 16} fontSize="11" fill="#ef4444">γ={fmtAngle(gamma)}</text>
+      {/* ── Angle labels ── */}
+      <text x={ax + arcR + 6} y={ay - 6} fontSize="11"
+        fill={hl.has('alpha') ? AMBER : '#ef4444'}
+        fontWeight={hl.has('alpha') ? 'bold' : 'normal'}>
+        α={fmtAngle(alpha)}
+      </text>
+      <text x={bx - 52} y={by - 6} fontSize="11"
+        fill={hl.has('beta') ? AMBER : '#ef4444'}
+        fontWeight={hl.has('beta') ? 'bold' : 'normal'}>
+        β={fmtAngle(beta)}
+      </text>
+      <text x={cx + 6} y={cy + 16} fontSize="11"
+        fill={hl.has('gamma') ? AMBER : '#ef4444'}
+        fontWeight={hl.has('gamma') ? 'bold' : 'normal'}>
+        γ={fmtAngle(gamma)}
+      </text>
     </svg>
   );
 }
