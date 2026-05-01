@@ -42,27 +42,43 @@ function makeCurve(fn: (x: number) => number, steps = 360): string {
   }).join(' ');
 }
 
-// ── Special-angle snapping ───────────────────────────────────────────────────
-// Exact radian values + their symbolic π labels
-const SPECIAL: { val: number; deg: number; rad: string }[] = [
-  { val: 0,                    deg: 0,   rad: '0' },
-  { val: Math.PI / 6,          deg: 30,  rad: 'π/6' },
-  { val: Math.PI / 4,          deg: 45,  rad: 'π/4' },
-  { val: Math.PI / 3,          deg: 60,  rad: 'π/3' },
-  { val: Math.PI / 2,          deg: 90,  rad: 'π/2' },
-  { val: 2 * Math.PI / 3,      deg: 120, rad: '2π/3' },
-  { val: 3 * Math.PI / 4,      deg: 135, rad: '3π/4' },
-  { val: 5 * Math.PI / 6,      deg: 150, rad: '5π/6' },
-  { val: Math.PI,               deg: 180, rad: 'π' },
-  { val: 7 * Math.PI / 6,      deg: 210, rad: '7π/6' },
-  { val: 5 * Math.PI / 4,      deg: 225, rad: '5π/4' },
-  { val: 4 * Math.PI / 3,      deg: 240, rad: '4π/3' },
-  { val: 3 * Math.PI / 2,      deg: 270, rad: '3π/2' },
-  { val: 5 * Math.PI / 3,      deg: 300, rad: '5π/3' },
-  { val: 7 * Math.PI / 4,      deg: 315, rad: '7π/4' },
-  { val: 11 * Math.PI / 6,     deg: 330, rad: '11π/6' },
-  { val: 2 * Math.PI,          deg: 360, rad: '2π' },
+// ── Special-angle snapping + exact values ───────────────────────────────────
+interface SpecialAngle {
+  val: number;
+  deg: number;
+  rad: string;
+  sin: string;
+  cos: string;
+  tan: string;
+}
+
+const SPECIAL: SpecialAngle[] = [
+  { val: 0,                 deg: 0,   rad: '0',     sin: '0',       cos: '1',       tan: '0' },
+  { val: Math.PI / 6,       deg: 30,  rad: 'π/6',   sin: '1/2',     cos: '√3/2',    tan: '√3/3' },
+  { val: Math.PI / 4,       deg: 45,  rad: 'π/4',   sin: '√2/2',    cos: '√2/2',    tan: '1' },
+  { val: Math.PI / 3,       deg: 60,  rad: 'π/3',   sin: '√3/2',    cos: '1/2',     tan: '√3' },
+  { val: Math.PI / 2,       deg: 90,  rad: 'π/2',   sin: '1',       cos: '0',       tan: '±∞' },
+  { val: 2*Math.PI/3,       deg: 120, rad: '2π/3',  sin: '√3/2',    cos: '−1/2',    tan: '−√3' },
+  { val: 3*Math.PI/4,       deg: 135, rad: '3π/4',  sin: '√2/2',    cos: '−√2/2',   tan: '−1' },
+  { val: 5*Math.PI/6,       deg: 150, rad: '5π/6',  sin: '1/2',     cos: '−√3/2',   tan: '−√3/3' },
+  { val: Math.PI,            deg: 180, rad: 'π',     sin: '0',       cos: '−1',      tan: '0' },
+  { val: 7*Math.PI/6,       deg: 210, rad: '7π/6',  sin: '−1/2',    cos: '−√3/2',   tan: '√3/3' },
+  { val: 5*Math.PI/4,       deg: 225, rad: '5π/4',  sin: '−√2/2',   cos: '−√2/2',   tan: '1' },
+  { val: 4*Math.PI/3,       deg: 240, rad: '4π/3',  sin: '−√3/2',   cos: '−1/2',    tan: '√3' },
+  { val: 3*Math.PI/2,       deg: 270, rad: '3π/2',  sin: '−1',      cos: '0',       tan: '±∞' },
+  { val: 5*Math.PI/3,       deg: 300, rad: '5π/3',  sin: '−√3/2',   cos: '1/2',     tan: '−√3' },
+  { val: 7*Math.PI/4,       deg: 315, rad: '7π/4',  sin: '−√2/2',   cos: '√2/2',    tan: '−1' },
+  { val: 11*Math.PI/6,      deg: 330, rad: '11π/6', sin: '−1/2',    cos: '√3/2',    tan: '−√3/3' },
+  { val: 2*Math.PI,         deg: 360, rad: '2π',    sin: '0',       cos: '1',       tan: '0' },
 ];
+
+// Return exact symbolic values for a special angle, or null if between angles
+function exactValues(a: number): Pick<SpecialAngle, 'sin'|'cos'|'tan'> | null {
+  for (const s of SPECIAL) {
+    if (Math.abs(a - s.val) < 0.0001) return { sin: s.sin, cos: s.cos, tan: s.tan };
+  }
+  return null;
+}
 
 const SNAP_THRESHOLD = 0.03; // ~1.7° — snaps slider to exact special angle
 
@@ -375,20 +391,40 @@ export default function UnitCircle() {
       </div>
 
       {/* ── Value badges ── */}
-      <div className="grid grid-cols-3 gap-3 text-center">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-2">
-          <div className="text-xs text-red-500 font-semibold mb-0.5">sin α</div>
-          <div className="font-mono font-bold text-red-700">{sinVal}</div>
-        </div>
-        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2">
-          <div className="text-xs text-emerald-500 font-semibold mb-0.5">cos α</div>
-          <div className="font-mono font-bold text-emerald-700">{cosVal}</div>
-        </div>
-        <div className="bg-purple-50 border border-purple-200 rounded-lg p-2">
-          <div className="text-xs text-purple-500 font-semibold mb-0.5">tg α</div>
-          <div className="font-mono font-bold text-purple-700">{tanVal}</div>
-        </div>
-      </div>
+      {(() => {
+        const exact = exactValues(angle);
+        return (
+          <div className="grid grid-cols-3 gap-3 text-center">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-2">
+              <div className="text-xs text-red-500 font-semibold mb-0.5">sin α</div>
+              <div className="font-mono font-bold text-red-700 text-base leading-tight">
+                {exact ? exact.sin : sinVal}
+              </div>
+              {exact && exact.sin !== String(sinVal) && (
+                <div className="text-xs text-red-400 mt-0.5">≈ {sinVal}</div>
+              )}
+            </div>
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2">
+              <div className="text-xs text-emerald-500 font-semibold mb-0.5">cos α</div>
+              <div className="font-mono font-bold text-emerald-700 text-base leading-tight">
+                {exact ? exact.cos : cosVal}
+              </div>
+              {exact && exact.cos !== String(cosVal) && (
+                <div className="text-xs text-emerald-400 mt-0.5">≈ {cosVal}</div>
+              )}
+            </div>
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-2">
+              <div className="text-xs text-purple-500 font-semibold mb-0.5">tg α</div>
+              <div className="font-mono font-bold text-purple-700 text-base leading-tight">
+                {exact ? exact.tan : tanVal}
+              </div>
+              {exact && exact.tan !== tanVal && (
+                <div className="text-xs text-purple-400 mt-0.5">≈ {tanVal}</div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Info line ── */}
       {/* ── Info line ── */}
