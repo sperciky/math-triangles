@@ -377,7 +377,27 @@ export default function UnitCircle() {
 
         {/* Slider + clickable dots */}
         <div className="flex-1 w-full">
-          {/* Range input — integer degrees → no float precision issues */}
+
+          {/* ── Quadrant colour bands + labels ──
+              Outer div carries the same 8 px inset as the slider thumb.
+              Inner div is 100 % of the CONTENT area → left: X % aligns
+              with the track exactly. */}
+          <div style={{ paddingLeft: 8, paddingRight: 8 }}>
+            <div className="relative flex h-5 rounded overflow-hidden mb-0.5">
+              {[
+                { label: 'I',   bg: 'bg-blue-50'   },
+                { label: 'II',  bg: 'bg-purple-50'  },
+                { label: 'III', bg: 'bg-orange-50'  },
+                { label: 'IV',  bg: 'bg-teal-50'    },
+              ].map(({ label, bg }) => (
+                <div key={label} className={`flex-1 ${bg} flex items-center justify-center border-x border-slate-200 first:border-l-0 last:border-r-0`}>
+                  <span className="text-xs font-semibold text-slate-300 select-none">{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Range input */}
           <input
             type="range"
             min="0"
@@ -388,35 +408,55 @@ export default function UnitCircle() {
             className="w-full accent-blue-600"
           />
 
-          {/* Clickable yellow dots at every special angle.
-              8 px h-padding matches the slider thumb inset so dots align
-              with the track endpoints. */}
-          <div className="relative h-5 mt-0.5" style={{ paddingLeft: 8, paddingRight: 8 }}>
-            {SPECIAL.map(s => {
-              const pct = (s.deg / 360) * 100;
-              const isActive = s.deg === deg;
-              return (
-                <button
-                  key={s.deg}
-                  onClick={() => setDeg(s.deg)}
-                  title={`${s.deg}° = ${s.rad}`}
-                  style={{ left: `${pct}%` }}
-                  className={`absolute top-0 -translate-x-1/2 w-3 h-3 rounded-full border-2 transition-transform hover:scale-150 focus:outline-none
-                    ${isActive
-                      ? 'bg-blue-500 border-blue-700 scale-125 z-10'
-                      : 'bg-yellow-400 border-yellow-600 hover:bg-yellow-300'}`}
+          {/* Dots row — nested structure so left:X% aligns with track */}
+          <div style={{ paddingLeft: 8, paddingRight: 8 }}>
+            <div className="relative h-4 mt-0.5">
+              {/* Quadrant dividers */}
+              {[90, 180, 270].map(d => (
+                <div
+                  key={d}
+                  style={{ left: `${(d / 360) * 100}%` }}
+                  className="absolute top-0 h-full w-px bg-slate-300 -translate-x-1/2 pointer-events-none"
                 />
-              );
-            })}
+              ))}
+              {/* Clickable dots */}
+              {SPECIAL.map(s => {
+                const isActive = s.deg === deg;
+                return (
+                  <button
+                    key={s.deg}
+                    onClick={() => setDeg(s.deg)}
+                    title={`${s.deg}° = ${s.rad}`}
+                    style={{ left: `${(s.deg / 360) * 100}%` }}
+                    className={`absolute top-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 transition-all hover:scale-150 focus:outline-none z-10
+                      ${isActive
+                        ? 'bg-blue-500 border-blue-700 scale-125'
+                        : 'bg-yellow-400 border-yellow-600 hover:bg-yellow-300'}`}
+                  />
+                );
+              })}
+            </div>
           </div>
 
-          {/* Axis labels */}
-          <div className="flex justify-between text-xs text-slate-400 mt-1" style={{ paddingLeft: 8, paddingRight: 8 }}>
-            <span>{useDeg ? '0°' : '0'}</span>
-            <span>{useDeg ? '90°' : 'π/2'}</span>
-            <span>{useDeg ? '180°' : 'π'}</span>
-            <span>{useDeg ? '270°' : '3π/2'}</span>
-            <span>{useDeg ? '360°' : '2π'}</span>
+          {/* Axis labels — absolutely centred under each dot */}
+          <div style={{ paddingLeft: 8, paddingRight: 8 }}>
+            <div className="relative h-4 mt-0.5">
+              {[
+                { d: 0,   l: useDeg ? '0°'   : '0'    },
+                { d: 90,  l: useDeg ? '90°'  : 'π/2'  },
+                { d: 180, l: useDeg ? '180°' : 'π'    },
+                { d: 270, l: useDeg ? '270°' : '3π/2' },
+                { d: 360, l: useDeg ? '360°' : '2π'   },
+              ].map(({ d, l }) => (
+                <span
+                  key={d}
+                  style={{ left: `${(d / 360) * 100}%` }}
+                  className="absolute top-0 -translate-x-1/2 text-xs text-slate-400 select-none whitespace-nowrap"
+                >
+                  {l}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
 
