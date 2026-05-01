@@ -289,7 +289,7 @@ export default function UnitCircle() {
               const large = angle > Math.PI ? 1 : 0;
               return (
                 <path
-                  d={`M ${UC_CX + 28} ${UC_CY} A 28 28 0 ${large} 1 ${ax} ${ay}`}
+                  d={`M ${UC_CX + 28} ${UC_CY} A 28 28 0 ${large} 0 ${ax} ${ay}`}
                   fill="rgba(59,130,246,0.12)"
                   stroke="#3b82f6"
                   strokeWidth="1.5"
@@ -356,7 +356,7 @@ export default function UnitCircle() {
             onChange={handleSlider}
             className="w-full accent-blue-600"
           />
-          <div className="flex justify-between text-xs text-slate-400 mt-0.5 px-0.5">
+          <div className="flex justify-between text-xs text-slate-400 mt-0.5" style={{ paddingLeft: 8, paddingRight: 8 }}>
             <span>{useDeg ? '0°' : '0'}</span>
             <span>{useDeg ? '90°' : 'π/2'}</span>
             <span>{useDeg ? '180°' : 'π'}</span>
