@@ -42,6 +42,54 @@ function makeCurve(fn: (x: number) => number, steps = 360): string {
   }).join(' ');
 }
 
+// ── Special-angle snapping ───────────────────────────────────────────────────
+// Exact radian values + their symbolic π labels
+const SPECIAL: { val: number; deg: number; rad: string }[] = [
+  { val: 0,                    deg: 0,   rad: '0' },
+  { val: Math.PI / 6,          deg: 30,  rad: 'π/6' },
+  { val: Math.PI / 4,          deg: 45,  rad: 'π/4' },
+  { val: Math.PI / 3,          deg: 60,  rad: 'π/3' },
+  { val: Math.PI / 2,          deg: 90,  rad: 'π/2' },
+  { val: 2 * Math.PI / 3,      deg: 120, rad: '2π/3' },
+  { val: 3 * Math.PI / 4,      deg: 135, rad: '3π/4' },
+  { val: 5 * Math.PI / 6,      deg: 150, rad: '5π/6' },
+  { val: Math.PI,               deg: 180, rad: 'π' },
+  { val: 7 * Math.PI / 6,      deg: 210, rad: '7π/6' },
+  { val: 5 * Math.PI / 4,      deg: 225, rad: '5π/4' },
+  { val: 4 * Math.PI / 3,      deg: 240, rad: '4π/3' },
+  { val: 3 * Math.PI / 2,      deg: 270, rad: '3π/2' },
+  { val: 5 * Math.PI / 3,      deg: 300, rad: '5π/3' },
+  { val: 7 * Math.PI / 4,      deg: 315, rad: '7π/4' },
+  { val: 11 * Math.PI / 6,     deg: 330, rad: '11π/6' },
+  { val: 2 * Math.PI,          deg: 360, rad: '2π' },
+];
+
+const SNAP_THRESHOLD = 0.03; // ~1.7° — snaps slider to exact special angle
+
+// Return the nearest special angle if within threshold, else the raw value
+function snapAngle(a: number): number {
+  for (const s of SPECIAL) {
+    if (Math.abs(a - s.val) < SNAP_THRESHOLD) return s.val;
+  }
+  return a;
+}
+
+// Format radian value as symbolic π string when possible, else "x.xxx rad"
+function formatRad(a: number): string {
+  for (const s of SPECIAL) {
+    if (Math.abs(a - s.val) < 0.0001) return s.rad;
+  }
+  return `${round(a, 3)} rad`;
+}
+
+// Format degree value as integer when on a special angle, else 1 decimal
+function formatDeg(a: number): string {
+  for (const s of SPECIAL) {
+    if (Math.abs(a - s.val) < 0.0001) return `${s.deg}°`;
+  }
+  return `${round(radToDeg(a), 1)}°`;
+}
+
 // ── Colour tokens ────────────────────────────────────────────────────────────
 const SIN_COLOR = '#ef4444';   // red-500
 const COS_COLOR = '#10b981';   // emerald-500
@@ -192,18 +240,19 @@ function FunctionGraph({ angle, useDeg }: { angle: number; useDeg: boolean }) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function UnitCircle() {
-  const [angle, setAngle]   = useState(Math.PI / 4);
-  const [useDeg, setUseDeg] = useState(true);
+  // rawAngle drives the slider position; angle is snapped for all computations
+  const [rawAngle, setRawAngle] = useState(Math.PI / 4);
+  const [useDeg, setUseDeg]     = useState(true);
 
-  const deg    = round(radToDeg(angle), 1);
+  const angle  = snapAngle(rawAngle);
   const sinVal = round(Math.sin(angle), 4);
   const cosVal = round(Math.cos(angle), 4);
-  const tanVal = Math.abs(Math.cos(angle)) < 0.01 ? '±∞' : String(round(Math.tan(angle), 4));
+  const tanVal = Math.abs(Math.cos(angle)) < 0.0001 ? '±∞' : String(round(Math.tan(angle), 4));
 
   const [px, py] = polarToSvg(angle, UC_R);
 
   const handleSlider = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setAngle(Number(e.target.value));
+    setRawAngle(Number(e.target.value));
   }, []);
 
   const quadrant =
@@ -294,16 +343,16 @@ export default function UnitCircle() {
         <div className="flex-1 w-full">
           <label className="block text-sm text-slate-600 mb-1 text-center">
             Úhel α =&nbsp;
-            <strong className="text-blue-700">{deg}°</strong>
+            <strong className="text-blue-700">{formatDeg(angle)}</strong>
             &nbsp;=&nbsp;
-            <strong className="text-blue-700">{round(angle, 3)} rad</strong>
+            <strong className="text-blue-700">{formatRad(angle)}</strong>
           </label>
           <input
             type="range"
             min="0"
             max={2 * Math.PI}
             step="0.01"
-            value={angle}
+            value={rawAngle}
             onChange={handleSlider}
             className="w-full accent-blue-600"
           />
@@ -342,17 +391,30 @@ export default function UnitCircle() {
       </div>
 
       {/* ── Info line ── */}
-      <p className="text-xs text-slate-500 text-center">
-        Kvadrant:&nbsp;<strong>{quadrant}</strong>
-        &nbsp;·&nbsp;P = ({cosVal}, {sinVal})
-        &nbsp;·&nbsp;sin²α + cos²α = {round(sinVal ** 2 + cosVal ** 2, 4)}
-        &nbsp;·&nbsp;
-        <span style={{ color: SIN_COLOR }}>sin</span> zrcadlí u&nbsp;
-        <strong>{useDeg ? `${round(180 - deg, 1)}°` : `π−α`}</strong>
-        &nbsp;·&nbsp;
-        <span style={{ color: COS_COLOR }}>cos</span> zrcadlí u&nbsp;
-        <strong>{useDeg ? `${round(360 - deg, 1)}°` : `2π−α`}</strong>
-      </p>
+      {/* ── Info line ── */}
+      {(() => {
+        const sm = snapAngle(sinMirror(angle));
+        const cm = snapAngle(cosMirror(angle));
+        const smClose = Math.abs(sm - angle) < EPS;
+        const cmClose = Math.abs(cm - angle) < EPS;
+        return (
+          <p className="text-xs text-slate-500 text-center leading-relaxed">
+            Kvadrant:&nbsp;<strong>{quadrant}</strong>
+            &nbsp;·&nbsp;P = ({cosVal},&nbsp;{sinVal})
+            &nbsp;·&nbsp;sin²α + cos²α = {round(sinVal ** 2 + cosVal ** 2, 4)}
+            <br />
+            <span style={{ color: SIN_COLOR }} className="font-semibold">sin</span>
+            {smClose
+              ? <> — úhel je svým vlastním zrcadlem</>
+              : <> zrcadlí u&nbsp;<strong>{useDeg ? formatDeg(sm) : formatRad(sm)}</strong></>}
+            &nbsp;·&nbsp;
+            <span style={{ color: COS_COLOR }} className="font-semibold">cos</span>
+            {cmClose
+              ? <> — úhel je svým vlastním zrcadlem</>
+              : <> zrcadlí u&nbsp;<strong>{useDeg ? formatDeg(cm) : formatRad(cm)}</strong></>}
+          </p>
+        );
+      })()}
     </div>
   );
 }
