@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useMemo } from 'react';
-import { radToDeg, round } from '../math/goniometry';
+import { degToRad, radToDeg, round } from '../math/goniometry';
 
 // ── Unit circle constants ────────────────────────────────────────────────────
 const UC_R  = 100;
@@ -255,12 +255,20 @@ function FunctionGraph({ angle, useDeg }: { angle: number; useDeg: boolean }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function UnitCircle() {
-  // rawAngle drives the slider position; angle is snapped for all computations
-  const [rawAngle, setRawAngle] = useState(Math.PI / 4);
-  const [useDeg, setUseDeg]     = useState(true);
+// Snap degree value to nearest special angle within 4°
+function snapDeg(d: number): number {
+  for (const s of SPECIAL) {
+    if (Math.abs(d - s.deg) < 4) return s.deg;
+  }
+  return d;
+}
 
-  const angle  = snapAngle(rawAngle);
+export default function UnitCircle() {
+  // Store angle in degrees — avoids float precision issues with the range input
+  const [deg, setDeg]       = useState(45);
+  const [useDeg, setUseDeg] = useState(true);
+
+  const angle  = degToRad(deg);           // radians for all math
   const sinVal = round(Math.sin(angle), 4);
   const cosVal = round(Math.cos(angle), 4);
   const tanVal = Math.abs(Math.cos(angle)) < 0.0001 ? '±∞' : String(round(Math.tan(angle), 4));
@@ -268,17 +276,13 @@ export default function UnitCircle() {
   const [px, py] = polarToSvg(angle, UC_R);
 
   const handleSlider = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = Number(e.target.value);
-    // Visually snap to a special angle when within ~2.5° so the thumb sticks
-    const STICK = 0.044; // ~2.5°
-    const stuck = SPECIAL.find(s => Math.abs(val - s.val) < STICK);
-    setRawAngle(stuck ? stuck.val : val);
+    setDeg(snapDeg(Number(e.target.value)));
   }, []);
 
   const quadrant =
-    angle < Math.PI / 2       ? 'I'   :
-    angle < Math.PI            ? 'II'  :
-    angle < 1.5 * Math.PI     ? 'III' : 'IV';
+    deg < 90  ? 'I'   :
+    deg < 180 ? 'II'  :
+    deg < 270 ? 'III' : 'IV';
 
   return (
     <div className="flex flex-col gap-4">
@@ -371,25 +375,43 @@ export default function UnitCircle() {
           </div>
         </div>
 
-        {/* Slider + ticks */}
+        {/* Slider + clickable dots */}
         <div className="flex-1 w-full">
+          {/* Range input — integer degrees → no float precision issues */}
           <input
             type="range"
-            list="angle-ticks"
             min="0"
-            max={2 * Math.PI}
-            step="0.001"
-            value={rawAngle}
+            max="360"
+            step="0.5"
+            value={deg}
             onChange={handleSlider}
             className="w-full accent-blue-600"
           />
-          {/* datalist provides browser tick marks at every special angle */}
-          <datalist id="angle-ticks">
-            {SPECIAL.map(s => (
-              <option key={s.val} value={s.val} />
-            ))}
-          </datalist>
-          <div className="flex justify-between text-xs text-slate-400 mt-0.5" style={{ paddingLeft: 8, paddingRight: 8 }}>
+
+          {/* Clickable yellow dots at every special angle.
+              8 px h-padding matches the slider thumb inset so dots align
+              with the track endpoints. */}
+          <div className="relative h-5 mt-0.5" style={{ paddingLeft: 8, paddingRight: 8 }}>
+            {SPECIAL.map(s => {
+              const pct = (s.deg / 360) * 100;
+              const isActive = s.deg === deg;
+              return (
+                <button
+                  key={s.deg}
+                  onClick={() => setDeg(s.deg)}
+                  title={`${s.deg}° = ${s.rad}`}
+                  style={{ left: `${pct}%` }}
+                  className={`absolute top-0 -translate-x-1/2 w-3 h-3 rounded-full border-2 transition-transform hover:scale-150 focus:outline-none
+                    ${isActive
+                      ? 'bg-blue-500 border-blue-700 scale-125 z-10'
+                      : 'bg-yellow-400 border-yellow-600 hover:bg-yellow-300'}`}
+                />
+              );
+            })}
+          </div>
+
+          {/* Axis labels */}
+          <div className="flex justify-between text-xs text-slate-400 mt-1" style={{ paddingLeft: 8, paddingRight: 8 }}>
             <span>{useDeg ? '0°' : '0'}</span>
             <span>{useDeg ? '90°' : 'π/2'}</span>
             <span>{useDeg ? '180°' : 'π'}</span>
