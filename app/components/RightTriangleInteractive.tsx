@@ -34,47 +34,44 @@ export default function RightTriangleInteractive({ triangle, rightAngleAt }: Pro
   const highlight = active?.hl ?? [];
 
   return (
-    <div className="flex flex-col lg:flex-row gap-5 items-start">
+    <div className="flex flex-col gap-4">
 
-      {/* Triangle diagram */}
-      <div className="shrink-0 self-center lg:self-start">
-        <TriangleVisualizer
-          triangle={triangle}
-          rightAngleAt={rightAngleAt}
-          highlight={highlight}
-          width={300}
-          height={200}
-        />
-      </div>
+      {/* Full-width triangle diagram */}
+      <TriangleVisualizer
+        triangle={triangle}
+        rightAngleAt={rightAngleAt}
+        highlight={highlight}
+        width={700}
+        height={280}
+        fullWidth
+      />
 
-      {/* Formula buttons */}
-      <div className="flex-1 min-w-0">
-        <p className="text-xs text-slate-500 mb-2">
-          Klikněte na vztah — trojúhelník zvýrazní příslušné prvky:
-        </p>
-        <div className="grid grid-cols-1 gap-1.5">
-          {FORMULAS.map(f => {
-            const on = activeId === f.id;
-            return (
-              <button
-                key={f.id}
-                onClick={() => setActiveId(on ? null : f.id)}
-                className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-all cursor-pointer ${
-                  on
-                    ? 'bg-amber-50 border-amber-400 shadow-sm ring-1 ring-amber-200'
-                    : 'bg-white border-slate-200 hover:bg-slate-50 hover:border-slate-300'
-                }`}
-              >
-                <span className={`font-mono text-sm font-semibold w-32 shrink-0 ${on ? 'text-amber-700' : 'text-slate-800'}`}>
-                  {f.formula}
-                </span>
-                <span className={`text-xs ${on ? 'text-amber-600' : 'text-slate-400'}`}>
-                  {f.desc}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+      {/* Formula buttons below in 2-column grid */}
+      <p className="text-xs text-slate-500">
+        Klikněte na vztah — trojúhelník zvýrazní příslušné prvky:
+      </p>
+      <div className="grid grid-cols-2 gap-1.5">
+        {FORMULAS.map(f => {
+          const on = activeId === f.id;
+          return (
+            <button
+              key={f.id}
+              onClick={() => setActiveId(on ? null : f.id)}
+              className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-all cursor-pointer ${
+                on
+                  ? 'bg-amber-50 border-amber-400 shadow-sm ring-1 ring-amber-200'
+                  : 'bg-white border-slate-200 hover:bg-slate-50 hover:border-slate-300'
+              }`}
+            >
+              <span className={`font-mono text-sm font-semibold shrink-0 ${on ? 'text-amber-700' : 'text-slate-800'}`}>
+                {f.formula}
+              </span>
+              <span className={`text-xs hidden sm:block ${on ? 'text-amber-600' : 'text-slate-400'}`}>
+                {f.desc}
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
