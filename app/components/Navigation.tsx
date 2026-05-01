@@ -14,7 +14,25 @@ const LEVELS = [
 
 export default function Navigation() {
   const pathname = usePathname();
-  const { progress, isLevelUnlocked, isTestUnlocked, levelsCompleted, totalLevels } = useProgress();
+  const { progress, isLevelUnlocked, isTestUnlocked, levelsCompleted, totalLevels, loaded } = useProgress();
+
+  // Render a static skeleton until client-side localStorage is read,
+  // to avoid server/client hydration mismatch.
+  if (!loaded) {
+    return (
+      <nav className="w-64 shrink-0 bg-slate-900 text-white min-h-screen flex flex-col p-4 gap-1">
+        <div className="mb-4">
+          <h1 className="text-lg font-bold text-white leading-tight">📐 Trojúhelníky</h1>
+          <p className="text-xs text-slate-400">Gymnázium — interaktivní výuka</p>
+        </div>
+        <div className="animate-pulse space-y-2 mt-2">
+          {[1,2,3,4,5].map(i => (
+            <div key={i} className="h-10 bg-slate-700 rounded-lg" />
+          ))}
+        </div>
+      </nav>
+    );
+  }
 
   const pct = Math.round((levelsCompleted / totalLevels) * 100);
 
@@ -47,17 +65,12 @@ export default function Navigation() {
         const completed = lp?.completed ?? false;
         const active = pathname === `/level/${level.id}`;
 
-        return (
+        return unlocked ? (
           <Link
             key={level.id}
-            href={unlocked ? `/level/${level.id}` : '#'}
-            aria-disabled={!unlocked}
+            href={`/level/${level.id}`}
             className={`flex items-start gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${
-              active
-                ? 'bg-blue-600 text-white'
-                : unlocked
-                ? 'text-slate-200 hover:bg-slate-700'
-                : 'text-slate-600 cursor-not-allowed'
+              active ? 'bg-blue-600 text-white' : 'text-slate-200 hover:bg-slate-700'
             }`}
           >
             <span className="shrink-0 mt-0.5">
@@ -73,30 +86,47 @@ export default function Navigation() {
               </span>
             )}
           </Link>
+        ) : (
+          <div
+            key={level.id}
+            title="Nejprve dokončete předchozí lekci"
+            className="flex items-start gap-2 rounded-lg px-3 py-2.5 text-sm text-slate-600 cursor-not-allowed select-none"
+          >
+            <span className="shrink-0 mt-0.5">🔒</span>
+            <span className="flex-1 min-w-0">
+              <span className="block font-medium truncate">{level.id}. {level.title}</span>
+              <span className="block text-xs opacity-70 truncate">{level.short}</span>
+            </span>
+          </div>
         );
       })}
 
       <div className="mt-2 text-xs text-slate-500 uppercase tracking-wider mb-1 px-1">Test</div>
 
-      <Link
-        href={isTestUnlocked() ? '/test' : '#'}
-        aria-disabled={!isTestUnlocked()}
-        className={`flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${
-          pathname === '/test'
-            ? 'bg-amber-500 text-white'
-            : isTestUnlocked()
-            ? 'text-slate-200 hover:bg-slate-700'
-            : 'text-slate-600 cursor-not-allowed'
-        }`}
-      >
-        <span>{progress.finalTestCompleted ? '🏆' : isTestUnlocked() ? '📝' : '🔒'}</span>
-        <span>
+      {isTestUnlocked() ? (
+        <Link
+          href="/test"
+          className={`flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors ${
+            pathname === '/test' ? 'bg-amber-500 text-white' : 'text-slate-200 hover:bg-slate-700'
+          }`}
+        >
+          <span>{progress.finalTestCompleted ? '🏆' : '📝'}</span>
+          <span>
+            <span className="block font-medium">Závěrečný test</span>
+            {progress.finalTestCompleted && (
+              <span className="text-xs text-amber-300">{progress.finalTestScore}/{progress.finalTestMaxScore} b.</span>
+            )}
+          </span>
+        </Link>
+      ) : (
+        <div
+          title="Dokončete všechny lekce pro odemčení testu"
+          className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-slate-600 cursor-not-allowed select-none"
+        >
+          <span>🔒</span>
           <span className="block font-medium">Závěrečný test</span>
-          {progress.finalTestCompleted && (
-            <span className="text-xs text-amber-300">{progress.finalTestScore}/{progress.finalTestMaxScore} b.</span>
-          )}
-        </span>
-      </Link>
+        </div>
+      )}
 
       <div className="mt-auto pt-4 border-t border-slate-700 text-xs text-slate-500 text-center">
         Gymnázium · 2. ročník · Trigonometrie
